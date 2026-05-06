@@ -1,5 +1,4 @@
 import os
-import asyncio
 import threading
 from flask import Flask
 from telegram import Update
@@ -37,18 +36,15 @@ async def forward_to_owner(update: Update, context: CallbackContext):
     user = update.effective_user
     msg = update.message
     
-    # Forward to owner (YOU)
     forwarded = await context.bot.forward_message(
         chat_id=OWNER_ID,
         from_chat_id=user.id,
         message_id=msg.message_id
     )
     
-    # Store mapping so replies work
     context.bot_data[forwarded.message_id] = user.id
 
 async def reply_to_user(update: Update, context: CallbackContext):
-    # Only allow YOU to reply
     if update.effective_user.id != OWNER_ID:
         return
     
@@ -57,17 +53,15 @@ async def reply_to_user(update: Update, context: CallbackContext):
         await update.message.reply_text("⚠️ Reply to a forwarded message.")
         return
     
-    # Get original user
     user_id = context.bot_data.get(reply_to.message_id)
     if not user_id:
         await update.message.reply_text("❌ Could not find original user.")
         return
     
-    # Send reply back to user (ONLY your message, no extra text)
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text=update.message.text  # Just your message, nothing added
+            text=update.message.text
         )
         await update.message.reply_text("✅ Reply sent.")
     except Exception as e:
@@ -93,7 +87,6 @@ def main():
     
     print("🤖 Livegram bot is running...")
     print(f"📨 Forwarding messages to owner: {OWNER_ID}")
-    print(f"🔗 Uptime URL: https://your-app-name.onrender.com/health")
     
     app.run_polling()
 
