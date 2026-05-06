@@ -1,15 +1,15 @@
 import os
 import asyncio
 import threading
-from flask import Flask, request
+from flask import Flask
 from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # ========== CONFIGURATION ==========
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8705756650:AAFUd0sFYQgOdj99-2yWJdKC88kxTsVnD4g")
-OWNER_ID = int(os.environ.get("OWNER_ID", "6810494746"))
-PORT = int(os.environ.get("PORT", 10000))
+BOT_TOKEN = "8705756650:AAFUd0sFYQgOdj99-2yWJdKC88kxTsVnD4g"  # Replace with your real token
+OWNER_ID = 6810494746  # Your Telegram ID
+PORT = int(os.environ.get("PORT", 8080))
 # ===================================
 
 # Flask app for uptime monitoring
@@ -17,7 +17,7 @@ flask_app = Flask(__name__)
 
 @flask_app.route('/')
 def home():
-    return "Bot is running!", 200
+    return "Bot is alive!", 200
 
 @flask_app.route('/health')
 def health():
@@ -26,7 +26,7 @@ def health():
 def run_flask():
     flask_app.run(host='0.0.0.0', port=PORT)
 
-# Telegram bot functions
+# ========== TELEGRAM BOT CODE ==========
 async def start(update: Update, context: CallbackContext):
     await update.message.reply_text(
         "MESSAGE THIS BOT IF YOU NEED HELP WITH THE INJECTOR OR IF YOU WANT TO BUY A VIP INJECTOR. I'LL GET BACK TO YOU AS SOON AS POSSIBLE.",
@@ -37,15 +37,18 @@ async def forward_to_owner(update: Update, context: CallbackContext):
     user = update.effective_user
     msg = update.message
     
+    # Forward to owner (YOU)
     forwarded = await context.bot.forward_message(
         chat_id=OWNER_ID,
         from_chat_id=user.id,
         message_id=msg.message_id
     )
     
+    # Store mapping so replies work
     context.bot_data[forwarded.message_id] = user.id
 
 async def reply_to_user(update: Update, context: CallbackContext):
+    # Only allow YOU to reply
     if update.effective_user.id != OWNER_ID:
         return
     
@@ -54,15 +57,17 @@ async def reply_to_user(update: Update, context: CallbackContext):
         await update.message.reply_text("⚠️ Reply to a forwarded message.")
         return
     
+    # Get original user
     user_id = context.bot_data.get(reply_to.message_id)
     if not user_id:
         await update.message.reply_text("❌ Could not find original user.")
         return
     
+    # Send reply back to user (ONLY your message, no extra text)
     try:
         await context.bot.send_message(
             chat_id=user_id,
-            text=update.message.text
+            text=update.message.text  # Just your message, nothing added
         )
         await update.message.reply_text("✅ Reply sent.")
     except Exception as e:
@@ -70,11 +75,13 @@ async def reply_to_user(update: Update, context: CallbackContext):
 
 async def unknown(update: Update, context: CallbackContext):
     await update.message.reply_text("❌ Unknown command. Use /start")
+# ==========================================
 
 def main():
     # Start Flask in a separate thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
+    print(f"🌐 Flask server running on port {PORT}")
     
     # Start Telegram bot
     app = Application.builder().token(BOT_TOKEN).build()
@@ -86,7 +93,8 @@ def main():
     
     print("🤖 Livegram bot is running...")
     print(f"📨 Forwarding messages to owner: {OWNER_ID}")
-    print(f"🌐 Flask server running on port {PORT}")
+    print(f"🔗 Uptime URL: https://your-app-name.onrender.com/health")
+    
     app.run_polling()
 
 if __name__ == "__main__":
