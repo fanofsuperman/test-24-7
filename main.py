@@ -34,28 +34,40 @@ async def start(update: Update, context: CallbackContext):
 
 async def forward_to_owner(update: Update, context: CallbackContext):
     user = update.effective_user
+    
+    # Don't forward messages from the owner
+    if user.id == OWNER_ID:
+        return
+    
     msg = update.message
     
-    forwarded = await context.bot.forward_message(
-        chat_id=OWNER_ID,
-        from_chat_id=user.id,
-        message_id=msg.message_id
-    )
-    
-    context.bot_data[forwarded.message_id] = user.id
+    try:
+        forwarded = await context.bot.forward_message(
+            chat_id=OWNER_ID,
+            from_chat_id=user.id,
+            message_id=msg.message_id
+        )
+        
+        # Store the mapping between forwarded message ID and user ID
+        context.bot_data[forwarded.message_id] = user.id
+        print(f"✅ Forwarded message from {user.id} (Username: {user.username})")
+    except Exception as e:
+        print(f"❌ Failed to forward: {e}")
 
 async def reply_to_user(update: Update, context: CallbackContext):
+    # Only owner can reply
     if update.effective_user.id != OWNER_ID:
         return
     
     reply_to = update.message.reply_to_message
     if not reply_to:
-        await update.message.reply_text("⚠️ Reply to a forwarded message.")
+        await update.message.reply_text("⚠️ Please reply to a forwarded message.")
         return
     
+    # Check if this is a reply to a forwarded message
     user_id = context.bot_data.get(reply_to.message_id)
     if not user_id:
-        await update.message.reply_text("❌ Could not find original user.")
+        await update.message.reply_text("❌ Could not find original user. Make sure you're replying to a forwarded message.")
         return
     
     try:
@@ -63,12 +75,15 @@ async def reply_to_user(update: Update, context: CallbackContext):
             chat_id=user_id,
             text=update.message.text
         )
-        await update.message.reply_text("✅ Reply sent.")
+        await update.message.reply_text("✅ Reply sent successfully!")
+        print(f"✅ Reply sent to user {user_id}")
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed: {e}")
+        await update.message.reply_text(f"❌ Failed to send reply: {e}")
+        print(f"❌ Reply failed: {e}")
 
 async def unknown(update: Update, context: CallbackContext):
     await update.message.reply_text("❌ Unknown command. Use /start")
+
 # ==========================================
 
 def main():
@@ -80,13 +95,17 @@ def main():
     # Start Telegram bot
     app = Application.builder().token(BOT_TOKEN).build()
     
+    # Add handlers in correct order (most specific first)
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.REPLY, forward_to_owner))
-    app.add_handler(MessageHandler(filters.REPLY, reply_to_user))
+    # This handler forwards all non-command messages (including replies) to owner
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_owner))
+    # This handler only catches replies from the owner (processed after forwarding)
+    app.add_handler(MessageHandler(filters.REPLY & filters.TEXT, reply_to_user))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
     
     print("🤖 Livegram bot is running...")
     print(f"📨 Forwarding messages to owner: {OWNER_ID}")
+    print("💡 Bot will forward ALL messages to owner, and owner can reply to any message")
     
     app.run_polling()
 
