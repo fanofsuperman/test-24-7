@@ -35,7 +35,7 @@ async def start(update: Update, context: CallbackContext):
 async def forward_to_owner(update: Update, context: CallbackContext):
     user = update.effective_user
     
-    # Don't forward owner's own messages
+    # Skip if the message is from owner
     if user.id == OWNER_ID:
         return
     
@@ -86,7 +86,7 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
     
     app.add_handler(CommandHandler("start", start))
-    # FIXED: Now forwards ALL messages from non-owner users (including replies)
+    # Forward ALL non-command messages from non-owner users (including replies)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_owner))
     app.add_handler(MessageHandler(filters.REPLY, reply_to_user))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
