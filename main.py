@@ -11,7 +11,6 @@ OWNER_ID = 6810494746
 PORT = int(os.environ.get("PORT", 8080))
 # ===================================
 
-# Flask app for uptime monitoring
 flask_app = Flask(__name__)
 
 @flask_app.route('/')
@@ -25,7 +24,6 @@ def health():
 def run_flask():
     flask_app.run(host='0.0.0.0', port=PORT)
 
-# ========== TELEGRAM BOT CODE ==========
 async def start(update: Update, context: CallbackContext):
     await update.message.reply_text(
         "MESSAGE THIS BOT IF YOU NEED HELP WITH THE INJECTOR OR IF YOU WANT TO BUY A VIP INJECTOR. I'LL GET BACK TO YOU AS SOON AS POSSIBLE.",
@@ -67,25 +65,20 @@ async def reply_to_user(update: Update, context: CallbackContext):
 
 async def unknown(update: Update, context: CallbackContext):
     await update.message.reply_text("❌ Unknown command. Use /start")
-# ==========================================
 
 def main():
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    print(f"🌐 Flask server running on port {PORT}")
 
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
 
-    # FIXED LINE (ONLY CHANGE HERE)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_owner))
+    # ✅ FIXED LINE
+    app.add_handler(MessageHandler(~filters.COMMAND, forward_to_owner))
 
     app.add_handler(MessageHandler(filters.REPLY, reply_to_user))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
-
-    print("🤖 Livegram bot is running...")
-    print(f"📨 Forwarding messages to owner: {OWNER_ID}")
 
     app.run_polling()
 
